@@ -76,6 +76,9 @@ public:
   double InterpolateSolutionAtProbe(Int3& ijk, std::pair<int, std::array<bool,8> >& ijk_valid,
                                     Vec3D &trilinear_coords, double ***v, int dim, int p);
 
+  double CalculateSoundSpeedAtProbe(Int3& ijk, std::pair<int, std::array<bool,8> >& ijk_valid,
+                                    Vec3D &trilinear_coords, double ***v, double ***id);
+
   double CalculateTemperatureAtProbe(Int3& ijk, std::pair<int, std::array<bool,8> >& ijk_valid,
                                      Vec3D &trilinear_coords, double ***v, double ***id);
 

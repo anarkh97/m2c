@@ -101,6 +101,19 @@ ProbeOutput::ProbeOutput(MPI_Comm &comm_, OutputData &iod_output_, std::vector<V
     delete [] filename;
   }
 
+  if (iod_output.probes.sound_speed[0] != 0) {
+    char *filename = new char[spn + strlen(iod_output.probes.sound_speed)];
+    sprintf(filename, "%s%s", iod_output.prefix, iod_output.probes.sound_speed);
+    file[Probes::SOUND_SPEED] = fopen(filename, "w");
+
+    if(!file[Probes::SOUND_SPEED]) {
+      print_error("*** Error: Cannot open file '%s' for output.\n", filename);
+      exit_mpi();
+    }
+
+    delete [] filename;
+  }
+
   if (iod_output.probes.pressure[0] != 0) {
     char *filename = new char[spn + strlen(iod_output.probes.pressure)];
     sprintf(filename, "%s%s", iod_output.prefix, iod_output.probes.pressure);
@@ -503,14 +516,14 @@ ProbeOutput::WriteAllSolutionsAlongLine(double time, double dt, int time_step, S
   print(file, "## Number of points: %d (h = %e)\n", line->numPoints, h);
   print(file, "## Time: %e, Time step: %d.\n", time, time_step);
   if(L) 
-    print(file, "## Coordinate  |  Density  |  Velocity (Vx,Vy,Vz)  |  Pressure  |  Temperature  |  Material ID  "
-                "|  Laser Radiance  |  LevelSet(s)");
+    print(file, "## Coordinate  |  Density  |  Velocity (Vx,Vy,Vz)  |  Pressure  |  Temperature  |  Sound Speed  "
+                "|  Material ID  |  Laser Radiance  |  LevelSet(s)");
   if(Nu_T) 
     print(file, "## Coordinate  |  Density  |  Velocity (Vx,Vy,Vz)  |  Pressure  |  Temperature  |  Material ID  "
                 "|  Eddy Viscosity  |  LevelSet(s)");
   else
-    print(file, "## Coordinate  |  Density  |  Velocity (Vx,Vy,Vz)  |  Pressure  |  Temperature  |  Material ID  "
-                "|  LevelSet(s)");
+    print(file, "## Coordinate  |  Density  |  Velocity (Vx,Vy,Vz)  |  Pressure  |  Temperature  |  Sound Speed  "
+                "|  Material ID  |  LevelSet(s)");
 
   if(ion)
     print(file, "  |  Mean Charge  |  Heavy Particles Density");
@@ -536,9 +549,10 @@ ProbeOutput::WriteAllSolutionsAlongLine(double time, double dt, int time_step, S
     double vz  = InterpolateSolutionAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], v, 5, 3);
     double p   = InterpolateSolutionAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], v, 5, 4);
     double T   = CalculateTemperatureAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], v, id);
+    double c   = CalculateSoundSpeedAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], v, id);
     double myid= InterpolateSolutionAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], id, 1, 0);
-    print(file, "%16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e", 
-                iNode*h, rho, vx, vy, vz, p, T, myid);
+    print(file, "%16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e  %16.8e", 
+                iNode*h, rho, vx, vy, vz, p, T, c, myid);
     if(l) {
       double laser_rad = InterpolateSolutionAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], l, 1, 0);
       print(file, "%16.8e  ", laser_rad);
@@ -634,6 +648,19 @@ ProbeOutput::WriteSolutionAtProbes(double time, double dt, int time_step, SpaceV
     print(file[Probes::VELOCITY_Z],"\n");
     mpi_barrier();
     fflush(file[Probes::VELOCITY_Z]);
+  }
+
+  if(file[Probes::SOUND_SPEED]) {
+    print(file[Probes::SOUND_SPEED], "%8d    %16.8e    ", time_step, time);
+    double*** id  = (double***)ID.GetDataPointer();
+    for(int iNode=0; iNode<numNodes; iNode++) {
+      double sol = CalculateSoundSpeedAtProbe(ijk[iNode], ijk_valid[iNode], trilinear_coords[iNode], v, id);
+      print(file[Probes::SOUND_SPEED], "%16.8e    ", sol);
+    }
+    print(file[Probes::SOUND_SPEED],"\n");
+    mpi_barrier();
+    fflush(file[Probes::SOUND_SPEED]);
+    ID.RestoreDataPointerToLocalVector();
   }
 
   if(file[Probes::PRESSURE]) {
@@ -845,6 +872,136 @@ ProbeOutput::InterpolateSolutionAtProbe(Int3& ijk, pair<int, array<bool,8> >& ij
     double c101 = ijk_valid.second[5] ? v[k+1][j][(i+1)*dim+p]   : 0.0;
     double c011 = ijk_valid.second[6] ? v[k+1][j+1][i*dim+p]     : 0.0;
     double c111 = ijk_valid.second[7] ? v[k+1][j+1][(i+1)*dim+p] : 0.0;
+
+    if(ijk_valid.first<8) {//fill invalid slots with average value
+      double c_avg = (c000+c100+c010+c110+c001+c101+c011+c111)/ijk_valid.first;
+      if(!ijk_valid.second[0])  c000 = c_avg;
+      if(!ijk_valid.second[1])  c100 = c_avg;
+      if(!ijk_valid.second[2])  c010 = c_avg;
+      if(!ijk_valid.second[3])  c110 = c_avg;
+      if(!ijk_valid.second[4])  c001 = c_avg;
+      if(!ijk_valid.second[5])  c101 = c_avg;
+      if(!ijk_valid.second[6])  c011 = c_avg;
+      if(!ijk_valid.second[7])  c111 = c_avg;
+    }
+
+    sol = MathTools::trilinear_interpolation(trilinear_coords, c000, c100, c010, c110, c001, c101, c011, c111);
+  }
+
+  MPI_Allreduce(MPI_IN_PLACE, &sol, 1, MPI_DOUBLE, MPI_SUM, comm);
+  return sol;
+}
+
+//-------------------------------------------------------------------------
+
+double
+ProbeOutput::CalculateSoundSpeedAtProbe(Int3& ijk, pair<int, array<bool,8> >& ijk_valid,
+                                        Vec3D &trilinear_coords, double ***v, double ***id)
+{
+  double sol = 0.0;
+
+  int i = ijk[0], j = ijk[1], k = ijk[2];
+  int dim = 5;
+  double rho,p,e;
+  int myid;
+
+  if(i!=INT_MIN && j!=INT_MIN && k!=INT_MIN) {//this probe node is in the current subdomain
+
+    // c000
+    double c000 = 0.0;
+    if(ijk_valid.second[0]) {
+      myid = id[k][j][i]; 
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k][j][i*dim];
+        p    =  v[k][j][i*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c000 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c100
+    double c100 = 0.0;
+    if(ijk_valid.second[1]) {
+      myid = id[k][j][i+1];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k][j][(i+1)*dim];
+        p    =  v[k][j][(i+1)*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c100 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c010
+    double c010 = 0.0;
+    if(ijk_valid.second[2]) {
+      myid = id[k][j+1][i];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k][j+1][i*dim];
+        p    =  v[k][j+1][i*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c010 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c110
+    double c110 = 0.0;
+    if(ijk_valid.second[3]) {
+      myid = id[k][j+1][i+1];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k][j+1][(i+1)*dim];
+        p    =  v[k][j+1][(i+1)*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c110 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c001
+    double c001 = 0.0;
+    if(ijk_valid.second[4]) {
+      myid = id[k+1][j][i];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k+1][j][i*dim];
+        p    =  v[k+1][j][i*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c001 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c101
+    double c101 = 0.0;
+    if(ijk_valid.second[5]) {
+      myid = id[k+1][j][i+1];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k+1][j][(i+1)*dim];
+        p    =  v[k+1][j][(i+1)*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c101 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c011
+    double c011 = 0.0;
+    if(ijk_valid.second[6]) {
+      myid = id[k+1][j+1][i];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k+1][j+1][i*dim];
+        p    =  v[k+1][j+1][i*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c011 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
+
+    // c111
+    double c111 = 0.0;
+    if(ijk_valid.second[7]) {
+      myid = id[k+1][j+1][i+1];
+      if(vf[myid]->type != VarFcnBase::HOMOGENEOUS_INCOMPRESSIBLE) {
+        rho  =  v[k+1][j+1][(i+1)*dim];
+        p    =  v[k+1][j+1][(i+1)*dim+4];
+        e    = vf[myid]->GetInternalEnergyPerUnitMass(rho,p);
+        c111 = vf[myid]->ComputeSoundSpeed(rho,e);
+      }
+    }
 
     if(ijk_valid.first<8) {//fill invalid slots with average value
       double c_avg = (c000+c100+c010+c110+c001+c101+c011+c111)/ijk_valid.first;

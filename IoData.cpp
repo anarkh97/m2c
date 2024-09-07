@@ -3104,6 +3104,7 @@ Probes::Probes() {
   velocity_x = "";
   velocity_y = "";
   velocity_z = "";
+  sound_speed = "";
   materialid = "";
   laser_radiance = "";
   levelset0 = "";
@@ -3133,6 +3134,7 @@ void Probes::setup(const char *name, ClassAssigner *father)
   new ClassStr<Probes>(ca, "VelocityX", this, &Probes::velocity_x);
   new ClassStr<Probes>(ca, "VelocityY", this, &Probes::velocity_y);
   new ClassStr<Probes>(ca, "VelocityZ", this, &Probes::velocity_z);
+  new ClassStr<Probes>(ca, "SoundSpeed", this, &Probes::sound_speed);
   new ClassStr<Probes>(ca, "MaterialID", this, &Probes::materialid);
   new ClassStr<Probes>(ca, "LaserRadiance", this, &Probes::laser_radiance);
   //KW: laser_radiance is actually irradiance. (A misnomer in the past)

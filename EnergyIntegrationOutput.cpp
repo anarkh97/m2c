@@ -95,6 +95,7 @@ EnergyIntegrationOutput::EnergyIntegrationOutput(MPI_Comm &comm_, IoData &iod, O
          print(file[i], "|  Solutions(Material %d)  ", j);
       }     
       print(file[i],"   |  Sum(including ghost/inactive)\n");
+      mpi_barrier();
       fflush(file[i]);
     }
 

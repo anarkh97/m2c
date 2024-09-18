@@ -446,8 +446,8 @@ PlaneOutput::InitializeOutput(SpaceVariable3D &coordinates)
                 elems_global[i][0]+1, elems_global[i][1]+1, elems_global[i][2]+1);
       else //quad
         fprintf(file, "%10d    2    %10d    %10d    %10d    %10d\n", i+1,
-                elems_global[i][0]+1, elems_global[i][1]+1, elems_global[i][2]+1,
-                elems_global[i][3]+1);
+                elems_global[i][0]+1, elems_global[i][1]+1, elems_global[i][3]+1,
+                elems_global[i][2]+1);
     }
     fclose(file);
 

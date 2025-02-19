@@ -1475,7 +1475,8 @@ struct OutputData {
 
   enum Options {OFF = 0, ON = 1};
   Options density, velocity, pressure, materialid, internal_energy, delta_internal_energy,
-          temperature, delta_temperature, laser_radiance, reference_map, principal_elastic_stresses;
+          temperature, delta_temperature, laser_radiance, reference_map, principal_elastic_stresses,
+	  sound_speed;
 
   enum VerbosityLevel {LOW = 0, MEDIUM = 1, HIGH = 2} verbose;
 

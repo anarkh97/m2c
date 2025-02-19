@@ -272,6 +272,20 @@ Output::WriteSolutionSnapshot(double time, [[maybe_unused]] int time_step, Space
     numSol++;
   }
 
+  if(iod.output.sound_speed==OutputData::ON) {
+    double*** s  = (double***) scalar.GetDataPointer();
+    for(int k=k0; k<kmax; k++)
+      for(int j=j0; j<jmax; j++)
+        for(int i=i0; i<imax; i++) {
+          double e = vf[(int)id[k][j][i]]->GetInternalEnergyPerUnitMass(v[k][j][i][0], v[k][j][i][4]);
+          s[k][j][i] = vf[(int)id[k][j][i]]->ComputeSoundSpeed(v[k][j][i][0], e);
+	}
+    scalar.RestoreDataPointerAndInsert();
+    PetscObjectSetName((PetscObject)(scalar.GetRefToGlobalVec()), "sound_speed");
+    VecView(scalar.GetRefToGlobalVec(), viewer);
+    numSol++;
+  }
+
 
   //KW: Looks like "VecView" may have a problem depending on the order.
   //    I had to move "molar_fractions" up here.

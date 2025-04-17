@@ -705,8 +705,12 @@ int main(int argc, char* argv[])
       //----------------------------------------------------
       t      += dt;
       dtleft -= dt;
+
+      double refer_time = walltime();
       integrator->AdvanceOneTimeStep(V, ID, Phi, NPhi, KappaPhi, L, Xi, Vturb, LocalDt, t, dt, time_step,
                                      subcycle, dts); 
+      if(verbose>0)
+        print("- Step computation time: %.4e s.\n", walltime()-refer_time);
       subcycle++; //do this *after* AdvanceOneTimeStep.
       //----------------------------------------------------
 
@@ -848,6 +852,8 @@ int main(int argc, char* argv[])
     delete vf[i];
 
   PetscFinalize();
+
+  //MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
 
   return 0;

@@ -13,6 +13,7 @@ using std::vector;
 using std::shared_ptr;
 
 extern double start_time; //time computation started (in Main.cpp)
+extern int verbose;
 
 //-----------------------------------------------------------------
 
@@ -95,7 +96,7 @@ DynamicLoadCalculator::RunForAeroS()
   // ---------------------------------------------------
   double t = 0.0, dt = 0.0, tmax = 0.0;
   int time_step = 0; 
-  ComputeForces(surface, force, t);
+  ComputeForces(surface, force, t, time_step);
 
   lagout.OutputTriangulatedMesh(surface->X0, surface->elems);
   lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, NULL, true);
@@ -117,7 +118,10 @@ DynamicLoadCalculator::RunForAeroS()
     t += dt;
     print("Step %d: t = %e, dt = %e. Computation time: %.4e s.\n", time_step, t, dt, walltime()-start_time);
  
-    ComputeForces(surface, force, t); 
+    double refer_time = walltime();
+    ComputeForces(surface, force, t, time_step); 
+    if(verbose>0)
+      print("- Step computation time: %.4e s.\n", walltime()-refer_time);
 
     if(t<tmax) {
       if(time_step==1)
@@ -578,11 +582,11 @@ DynamicLoadCalculator::InterpolateInTime(double t1, double* input1, double t2, d
 //-----------------------------------------------------------------
 
 void
-DynamicLoadCalculator::ComputeForces(TriangulatedSurface *surface, vector<Vec3D> *force, double t)
+DynamicLoadCalculator::ComputeForces(TriangulatedSurface *surface, vector<Vec3D> *force, double t, int step)
 {
 
   if(std::get<0>(force_calculator)) {//User has specified a force calculator
-    ApplyUserDefinedForces(surface, force, t);
+    ApplyUserDefinedForces(surface, force, t, step);
     return;
   }
   
@@ -665,7 +669,8 @@ DynamicLoadCalculator::ComputeForces(TriangulatedSurface *surface, vector<Vec3D>
 
 void
 DynamicLoadCalculator::ApplyUserDefinedForces(TriangulatedSurface *surface, 
-                                              std::vector<Vec3D> *force, double t)
+                                              std::vector<Vec3D> *force, double t,
+                                              int time_step)
 {
   UserDefinedForces *calculator(std::get<0>(force_calculator));
   if(!calculator)
@@ -675,7 +680,7 @@ DynamicLoadCalculator::ApplyUserDefinedForces(TriangulatedSurface *surface,
   vector<Vec3D> &X0(surface->X0);
   vector<Int3> &elems(surface->elems);
 
-  calculator->GetUserDefinedForces(t, X0.size(), (double*)X0.data(), (double*)Xs.data(),
+  calculator->GetUserDefinedForces(t, time_step, X0.size(), (double*)X0.data(), (double*)Xs.data(),
                                    elems.size(), (int*)elems.data(),
                                    (double*)force->data()); //output
 }

@@ -83,6 +83,7 @@ DynamicLoadCalculator::RunForAeroS()
   // Get pointer to embedded surface and force vector
   TriangulatedSurface *surface = embed->GetPointerToSurface(0);
   vector<Vec3D>       *force   = embed->GetPointerToForcesOnSurface(0);
+  vector<Vec3D>       *force2  = new vector<Vec3D>(surface->active_nodes);
 
   // Allocate memory for the (internal) force vector
   F0.assign(surface->X.size(), Vec3D(0.0));
@@ -96,10 +97,10 @@ DynamicLoadCalculator::RunForAeroS()
   // ---------------------------------------------------
   double t = 0.0, dt = 0.0, tmax = 0.0;
   int time_step = 0; 
-  ComputeForces(surface, force, t, time_step);
+  ComputeForces(surface, force, force2, t, time_step);
 
   lagout.OutputTriangulatedMesh(surface->X0, surface->elems);
-  lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, NULL, true);
+  lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, force2, true);
 
   concurrent.CommunicateBeforeTimeStepping(); 
   dt   = concurrent.GetTimeStepSize();
@@ -119,7 +120,7 @@ DynamicLoadCalculator::RunForAeroS()
     print("Step %d: t = %e, dt = %e. Computation time: %.4e s.\n", time_step, t, dt, walltime()-start_time);
  
     double refer_time = walltime();
-    ComputeForces(surface, force, t, time_step); 
+    ComputeForces(surface, force, force2, t, time_step); 
     if(verbose>0)
       print("- Step computation time: %.4e s.\n", walltime()-refer_time);
 
@@ -133,12 +134,12 @@ DynamicLoadCalculator::RunForAeroS()
     dt   = concurrent.GetTimeStepSize();
     tmax = concurrent.GetMaxTime(); //set to a small number at final time-step
 
-    lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, NULL, false);
+    lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, force2, false);
   }
 
   concurrent.FinalExchange();
 
-  lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, NULL, true);
+  lagout.OutputResults(t, dt, time_step, surface->X0, surface->X, *force, force2, true);
 
   if(embed)
     delete embed;
@@ -582,11 +583,11 @@ DynamicLoadCalculator::InterpolateInTime(double t1, double* input1, double t2, d
 //-----------------------------------------------------------------
 
 void
-DynamicLoadCalculator::ComputeForces(TriangulatedSurface *surface, vector<Vec3D> *force, double t, int step)
+DynamicLoadCalculator::ComputeForces(TriangulatedSurface *surface, vector<Vec3D> *force, vector<Vec3D> *force2, double t, int step)
 {
 
   if(std::get<0>(force_calculator)) {//User has specified a force calculator
-    ApplyUserDefinedForces(surface, force, t, step);
+    ApplyUserDefinedForces(surface, force, force2, t, step);
     return;
   }
   
@@ -669,8 +670,9 @@ DynamicLoadCalculator::ComputeForces(TriangulatedSurface *surface, vector<Vec3D>
 
 void
 DynamicLoadCalculator::ApplyUserDefinedForces(TriangulatedSurface *surface, 
-                                              std::vector<Vec3D> *force, double t,
-                                              int time_step)
+                                              std::vector<Vec3D> *force, 
+                                              std::vector<Vec3D> *force2,
+                                              double t, int time_step)
 {
   UserDefinedForces *calculator(std::get<0>(force_calculator));
   if(!calculator)
@@ -682,7 +684,7 @@ DynamicLoadCalculator::ApplyUserDefinedForces(TriangulatedSurface *surface,
 
   calculator->GetUserDefinedForces(t, time_step, X0.size(), (double*)X0.data(), (double*)Xs.data(),
                                    elems.size(), (int*)elems.data(),
-                                   (double*)force->data()); //output
+                                   (double*)force->data(), (double*)force2->data()); //output
 }
 
 

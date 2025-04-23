@@ -65,10 +65,10 @@ private:
 
   void RunForAeroS();
 
-  void ComputeForces(TriangulatedSurface *surface, std::vector<Vec3D> *force, double t, int step);
+  void ComputeForces(TriangulatedSurface *surface, std::vector<Vec3D> *force, std::vector<Vec3D> *force2, double t, int step);
   
   void SetupUserDefinedForces();
-  void ApplyUserDefinedForces(TriangulatedSurface *surface, std::vector<Vec3D> *force, double t, int step);
+  void ApplyUserDefinedForces(TriangulatedSurface *surface, std::vector<Vec3D> *force, std::vector<Vec3D> *force2, double t, int step);
 
   void ReadMetaFile(std::string filename);
   void ReadSnapshot(std::string filename, std::vector<std::vector<double> >& S);

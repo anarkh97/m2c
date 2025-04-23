@@ -19,7 +19,7 @@ public:
 
   //! Calculates a force (fx,fy,fz) for each node; elements are triangles
   virtual void GetUserDefinedForces(double time, int step, int nNodes, double *X0, double *X,
-                                    int nElems, int *elems, double* nodal_forces) = 0;
+                                    int nElems, int *elems, double* nodal_forces, double* nodal_forces_over_area) = 0;
 
 };
 

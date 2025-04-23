@@ -92,11 +92,23 @@ LagrangianOutput::OutputResults(double t, double dt, int time_step, std::vector<
   if(!isTimeToWrite(t, dt, time_step, iod_lag.frequency_dt, iod_lag.frequency, last_snapshot_time, force_write))
     return;
 
+  auto endOfOutput = [this, t]() {
+    MPI_Barrier(this->comm);
+
+    print("- Wrote solution on a Lagrangian mesh at %e.\n", t);
+
+    this->last_snapshot_time = t;
+    this->iFrame++;
+  };
+
   int mpi_rank = -1;
   MPI_Comm_rank(comm, &mpi_rank);
 
-  if(mpi_rank != 0)
-    goto END_OF_OUTPUT;
+  if(mpi_rank != 0) {
+    endOfOutput();
+    return;
+  }
+    
   
   //Only Proc #0 writes
   
@@ -193,15 +205,7 @@ LagrangianOutput::OutputResults(double t, double dt, int time_step, std::vector<
 
   } 
 
-
-END_OF_OUTPUT:
-
-  MPI_Barrier(comm);
-
-  print("- Wrote solution on a Lagrangian mesh at %e.\n", t);
-
-  last_snapshot_time = t;
-  iFrame++;
+  endOfOutput();
 
 }
 

@@ -25,9 +25,12 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # folders for executable and libraries
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+# local directory sent to VersionHeader
+set(M2C_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 #--------------------------------------------------------
 # find packages 
@@ -71,27 +74,28 @@ endif()
 # a dummy output that's not actually produced, in order
 # to force version.cmake to always be re-run before the build
 add_custom_target(VersionHeader
-  ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/version.cmake
+  ${CMAKE_COMMAND} -DM2C_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} 
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/version.cmake
 )
 
 ADD_CUSTOM_COMMAND(
-    OUTPUT ${CMAKE_SOURCE_DIR}/version.h
-           ${CMAKE_SOURCE_DIR}/_version.h
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/version.h
+           ${CMAKE_CURRENT_SOURCE_DIR}/_version.h
     COMMAND cmake -P
-            ${CMAKE_SOURCE_DIR}/version.h)
+            ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
 # -----------------------------
 
 # add include and link directories 
-include_directories("${CMAKE_SOURCE_DIR}")
-include_directories(${CMAKE_SOURCE_DIR}/GeoTools)
-include_directories(${CMAKE_SOURCE_DIR}/MathTools)
-link_directories(${CMAKE_SOURCE_DIR}/parser)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/GeoTools)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/MathTools)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/parser)
 
 # compile the parser
 add_custom_target(
    extern_lib
    COMMAND $(MAKE)
-   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/parser
+   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/parser
 )
 
 # add the executable
